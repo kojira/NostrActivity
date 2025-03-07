@@ -16,15 +16,13 @@ export default function Home() {
   const [progress, setProgress] = useState<FetchProgress | null>(null);
   const { toast } = useToast();
 
-  // Get current date and adjust to start of the day
+  // 現在の日付を取得し、時刻を00:00:00に設定
   const now = new Date();
   now.setHours(0, 0, 0, 0);
 
-  // Calculate start date (53 weeks ago from the start of current week)
-  const startOfWeek = new Date(now);
-  startOfWeek.setDate(now.getDate() - now.getDay());
-  const startDate = new Date(startOfWeek);
-  startDate.setDate(startOfWeek.getDate() - (53 * 7));
+  // 正確に1年前の日付を計算
+  const startDate = new Date(now);
+  startDate.setFullYear(now.getFullYear() - 1);
 
   const fetchEvents = async () => {
     if (!pubkey.trim()) {
