@@ -31,6 +31,13 @@ export class NostrClient {
   }
 
   public async connectToRelay(url: string) {
+    // 既存の接続が有効な場合は再利用
+    const existingRelay = this.relayPool.find(r => r.url === url);
+    if (existingRelay && existingRelay.relay.readyState === WebSocket.OPEN) {
+      console.log(`[Nostr] Using existing connection to ${url}`);
+      return;
+    }
+
     // 既存の接続を閉じる
     this.relayPool.forEach(({ relay }) => {
       if (relay.readyState === WebSocket.OPEN) {
