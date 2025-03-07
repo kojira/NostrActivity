@@ -33,11 +33,15 @@ export default function Home() {
 
     try {
       console.log('[Home] Starting event fetch for pubkey:', pubkey);
-      const fetchedEvents = await nostrClient.getEvents(pubkey, oneYearAgo, (progress) => {
-        setProgress(progress);
-        // イベントのリアルタイムな更新
-        setEvents(fetchedEvents);
-      });
+      const fetchedEvents = await nostrClient.getEvents(
+        pubkey,
+        oneYearAgo,
+        (progress, partialEvents) => {
+          setProgress(progress);
+          // 部分的に取得したイベントで更新
+          setEvents(partialEvents);
+        }
+      );
       setEvents(fetchedEvents);
       console.log('[Home] Event fetch completed. Total events:', fetchedEvents.length);
       toast({

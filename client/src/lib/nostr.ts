@@ -73,7 +73,7 @@ export class NostrClient {
   public async getEvents(
     pubkey: string,
     startTime: number,
-    onProgress?: (progress: FetchProgress) => void
+    onProgress?: (progress: FetchProgress, partialEvents: NostrEvent[]) => void
   ): Promise<NostrEvent[]> {
     const normalizedPubkey = this.normalizePubkey(pubkey);
     const events: NostrEvent[] = [];
@@ -114,7 +114,7 @@ export class NostrClient {
           fetchedEvents: events.length,
           startDate: new Date(currentStartTime * 1000).toISOString(),
           endDate: new Date(batchEndTime * 1000).toISOString(),
-        });
+        }, [...events]); // 現在までに取得したイベントの配列のコピーを渡す
       }
 
       console.log(`[Nostr] Batch ${batchCount} completed: ${batchEvents.length} events`);
