@@ -48,8 +48,9 @@ export class NostrClient {
     // WebSocket接続が確立されるまで待機
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
+        relay.close();
         reject(new Error(`Connection timeout to ${url}`));
-      }, 5000);
+      }, 10000); // タイムアウトを10秒に延長
 
       relay.onopen = () => {
         clearTimeout(timeout);
@@ -126,28 +127,41 @@ export class NostrClient {
         until: batchEndTime,
       };
 
-      const batchEvents = await this.fetchEventBatch(filter);
-      events.push(...batchEvents);
+      try {
+        const batchEvents = await this.fetchEventBatch(filter);
+        events.push(...batchEvents);
 
-      if (onProgress) {
-        onProgress({
-          currentBatch: batchCount,
-          totalBatches,
-          fetchedEvents: events.length,
-          startDate: new Date(currentStartTime * 1000).toISOString(),
-          endDate: new Date(batchEndTime * 1000).toISOString(),
-        }, [...events]); // 現在までに取得したイベントの配列のコピーを渡す
-      }
+        if (onProgress) {
+          onProgress({
+            currentBatch: batchCount,
+            totalBatches,
+            fetchedEvents: events.length,
+            startDate: new Date(currentStartTime * 1000).toISOString(),
+            endDate: new Date(batchEndTime * 1000).toISOString(),
+          }, [...events]); // 現在までに取得したイベントの配列のコピーを渡す
+        }
 
-      console.log(`[Nostr] Batch ${batchCount} completed: ${batchEvents.length} events`);
+        console.log(`[Nostr] Batch ${batchCount} completed: ${batchEvents.length} events`);
 
-      if (batchEvents.length === 0) {
-        hasMoreEvents = false;
-        console.log('[Nostr] No more events found, stopping fetch');
-      } else {
+        if (batchEvents.length === 0) {
+          hasMoreEvents = false;
+          console.log('[Nostr] No more events found, stopping fetch');
+        } else {
+          currentStartTime = batchEndTime;
+        }
+      } catch (error) {
+        console.error(`[Nostr] Error fetching batch ${batchCount}:`, error);
+        // エラーが発生しても次のバッチを続行
         currentStartTime = batchEndTime;
       }
     }
+
+    // すべての接続を閉じる
+    this.relayPool.forEach(({ relay }) => {
+      if (relay.readyState === WebSocket.OPEN) {
+        relay.close();
+      }
+    });
 
     console.log(`[Nostr] Total events fetched: ${events.length}`);
     return events;
@@ -156,68 +170,67 @@ export class NostrClient {
   private async fetchEventBatch(filter: any): Promise<NostrEvent[]> {
     const events: NostrEvent[] = [];
     const promises = this.relayPool.map(({ relay, url }) => {
-      return new Promise<void>((resolve) => {
-        // 接続が確立されていない場合は待機
+      return new Promise<void>((resolve, reject) => {
         if (relay.readyState !== WebSocket.OPEN) {
-          console.log(`[Nostr] Waiting for connection to ${url}...`);
-          relay.onopen = () => {
-            this.sendRequest(relay, url, filter, events, resolve);
-          };
+          console.log(`[Nostr] Relay not connected: ${url}`);
+          reject(new Error(`Relay not connected: ${url}`));
           return;
         }
 
-        this.sendRequest(relay, url, filter, events, resolve);
+        const subId = Math.random().toString(36).substring(7);
+        let receivedEose = false;
+        let timeout: NodeJS.Timeout;
+        let eventCount = 0;
+
+        console.log(`[Nostr] Sending REQ to ${url}:`, filter);
+
+        const cleanup = () => {
+          if (timeout) clearTimeout(timeout);
+          relay.onmessage = null;
+        };
+
+        const resetTimeout = () => {
+          if (timeout) clearTimeout(timeout);
+          timeout = setTimeout(() => {
+            if (!receivedEose) {
+              console.log(`[Nostr] Timeout reached for ${url}, closing subscription ${subId}`);
+              cleanup();
+              relay.send(JSON.stringify(["CLOSE", subId]));
+              resolve();
+            }
+          }, 10000); // タイムアウトを10秒に延長
+        };
+
+        resetTimeout();
+
+        relay.onmessage = (event) => {
+          try {
+            const [type, _, eventData] = JSON.parse(event.data);
+            if (type === 'EVENT') {
+              eventCount++;
+              resetTimeout();
+              events.push(eventData);
+            } else if (type === 'EOSE') {
+              receivedEose = true;
+              console.log(`[Nostr] Received EOSE from ${url} for subscription ${subId}`);
+              console.log(`[Nostr] Events received from ${url}: ${eventCount}`);
+              cleanup();
+              relay.send(JSON.stringify(["CLOSE", subId]));
+              resolve();
+            }
+          } catch (error) {
+            console.error(`[Nostr] Error processing message from ${url}:`, error);
+            cleanup();
+            reject(error);
+          }
+        };
+
+        relay.send(JSON.stringify(["REQ", subId, filter]));
       });
     });
 
-    await Promise.all(promises);
+    await Promise.allSettled(promises);
     return events;
-  }
-
-  private sendRequest(
-    relay: WebSocket,
-    url: string,
-    filter: any,
-    events: NostrEvent[],
-    resolve: () => void
-  ) {
-    const subId = Math.random().toString(36).substring(7);
-    let receivedEose = false;
-    let timeout: NodeJS.Timeout;
-    let eventCount = 0;
-
-    console.log(`[Nostr] Sending REQ to ${url}:`, filter);
-
-    const resetTimeout = () => {
-      if (timeout) clearTimeout(timeout);
-      timeout = setTimeout(() => {
-        if (!receivedEose) {
-          console.log(`[Nostr] Timeout reached for ${url}, closing subscription ${subId}`);
-          relay.send(JSON.stringify(["CLOSE", subId]));
-          resolve();
-        }
-      }, 5000);
-    };
-
-    resetTimeout();
-
-    relay.send(JSON.stringify(["REQ", subId, filter]));
-
-    relay.onmessage = (event) => {
-      const [type, _, eventData] = JSON.parse(event.data);
-      if (type === 'EVENT') {
-        eventCount++;
-        resetTimeout();
-        events.push(eventData);
-      } else if (type === 'EOSE') {
-        receivedEose = true;
-        console.log(`[Nostr] Received EOSE from ${url} for subscription ${subId}`);
-        console.log(`[Nostr] Events received from ${url}: ${eventCount}`);
-        clearTimeout(timeout);
-        relay.send(JSON.stringify(["CLOSE", subId]));
-        resolve();
-      }
-    };
   }
 }
 
