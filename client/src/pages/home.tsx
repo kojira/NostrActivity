@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,15 @@ export default function Home() {
   const [progress, setProgress] = useState<FetchProgress | null>(null);
   const { toast } = useToast();
 
-  const oneYearAgo = Math.floor(Date.now() / 1000) - 365 * 24 * 60 * 60;
+  // Get current date and adjust to start of the day
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  // Calculate start date (53 weeks ago from the start of current week)
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - now.getDay());
+  const startDate = new Date(startOfWeek);
+  startDate.setDate(startOfWeek.getDate() - (53 * 7));
 
   const fetchEvents = async () => {
     if (!pubkey.trim()) {
@@ -48,7 +56,8 @@ export default function Home() {
       console.log('[Home] Starting event fetch for pubkey:', pubkey);
       const fetchedEvents = await nostrClient.getEvents(
         pubkey,
-        oneYearAgo,
+        Math.floor(startDate.getTime() / 1000),
+        Math.floor(now.getTime() / 1000),
         (progress, partialEvents) => {
           setProgress(progress);
           // 部分的に取得したイベントで更新

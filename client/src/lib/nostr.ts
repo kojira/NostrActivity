@@ -102,38 +102,36 @@ export class NostrClient {
   public async getEvents(
     pubkey: string,
     startTime: number,
+    endTime: number,
     onProgress?: (progress: FetchProgress, partialEvents: NostrEvent[]) => void
   ): Promise<NostrEvent[]> {
     const normalizedPubkey = this.normalizePubkey(pubkey);
     const events: NostrEvent[] = [];
     const BATCH_WINDOW = 24 * 60 * 60; // 1日単位で取得
-    let currentEndTime = Math.floor(Date.now() / 1000);
     let currentStartTime = startTime;
     let hasMoreEvents = true;
     let batchCount = 0;
 
     // 総バッチ数を計算
-    const totalBatches = Math.ceil((currentEndTime - startTime) / BATCH_WINDOW);
+    const totalBatches = Math.ceil((endTime - startTime) / BATCH_WINDOW);
 
     console.log(`[Nostr] Starting event fetch for pubkey: ${normalizedPubkey}`);
-    console.log(`[Nostr] Time range: ${new Date(startTime * 1000).toISOString()} - ${new Date(currentEndTime * 1000).toISOString()}`);
+    console.log(`[Nostr] Time range: ${new Date(startTime * 1000).toISOString()} - ${new Date(endTime * 1000).toISOString()}`);
 
-    while (hasMoreEvents && currentStartTime < currentEndTime) {
-      const batchEndTime = Math.min(currentStartTime + BATCH_WINDOW, currentEndTime);
+    while (hasMoreEvents && currentStartTime < endTime) {
+      const batchEndTime = Math.min(currentStartTime + BATCH_WINDOW, endTime);
       batchCount++;
 
       console.log(`[Nostr] Fetching batch ${batchCount}:`);
       console.log(`[Nostr] From: ${new Date(currentStartTime * 1000).toISOString()}`);
       console.log(`[Nostr] To: ${new Date(batchEndTime * 1000).toISOString()}`);
 
-      const filter = {
-        authors: [normalizedPubkey],
-        since: currentStartTime,
-        until: batchEndTime,
-      };
-
       try {
-        const batchEvents = await this.fetchEventBatch(filter);
+        const batchEvents = await this.fetchEventBatch({
+          authors: [normalizedPubkey],
+          since: currentStartTime,
+          until: batchEndTime,
+        });
         events.push(...batchEvents);
 
         if (onProgress) {
@@ -147,13 +145,7 @@ export class NostrClient {
         }
 
         console.log(`[Nostr] Batch ${batchCount} completed: ${batchEvents.length} events`);
-
-        if (batchEvents.length === 0) {
-          hasMoreEvents = false;
-          console.log('[Nostr] No more events found, stopping fetch');
-        } else {
-          currentStartTime = batchEndTime;
-        }
+        currentStartTime = batchEndTime;
       } catch (error) {
         console.error(`[Nostr] Error fetching batch ${batchCount}:`, error);
         // エラーが発生しても次のバッチを続行
