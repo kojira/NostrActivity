@@ -30,7 +30,7 @@ export class NostrClient {
     this.connectToRelay(relayUrl);
   }
 
-  public connectToRelay(url: string) {
+  public async connectToRelay(url: string) {
     // 既存の接続を閉じる
     this.relayPool.forEach(({ relay }) => relay.close());
     this.relayPool = [];
@@ -38,7 +38,25 @@ export class NostrClient {
     // 新しい接続を作成
     const relay = new WebSocket(url);
     this.relayPool.push({ url, relay });
-    console.log(`[Nostr] Connected to relay: ${url}`);
+    console.log(`[Nostr] Connecting to relay: ${url}`);
+
+    // WebSocket接続が確立されるまで待機
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error(`Connection timeout to ${url}`));
+      }, 5000);
+
+      relay.onopen = () => {
+        clearTimeout(timeout);
+        console.log(`[Nostr] Connected to relay: ${url}`);
+        resolve();
+      };
+
+      relay.onerror = () => {
+        clearTimeout(timeout);
+        reject(new Error(`Failed to connect to ${url}`));
+      };
+    });
   }
 
   private isValidPubkey(pubkey: string): boolean {
