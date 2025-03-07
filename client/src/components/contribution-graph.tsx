@@ -143,7 +143,7 @@ export function ContributionGraph({ events }: ContributionGraphProps) {
               {week.map((day, dayIndex) => (
                 <div
                   key={dayIndex}
-                  className={`w-3 h-3 rounded-sm ${getColor(day.count)} cursor-pointer hover:ring-2 hover:ring-primary transition-all`}
+                  className={`w-3 h-3 rounded ${getColor(day.count)} cursor-pointer hover:ring-2 hover:ring-primary transition-all`}
                   title={`${format(day.date, 'yyyy/MM/dd')}: ${day.count} contributions`}
                   onClick={() => handleDayClick(day)}
                 />
@@ -154,12 +154,12 @@ export function ContributionGraph({ events }: ContributionGraphProps) {
         <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
           <span>Less</span>
           <div className="flex gap-1">
-            <div className="w-3 h-3 rounded-sm bg-gray-100" />
-            <div className="w-3 h-3 rounded-sm bg-blue-200" />
-            <div className="w-3 h-3 rounded-sm bg-blue-300" />
-            <div className="w-3 h-3 rounded-sm bg-blue-400" />
-            <div className="w-3 h-3 rounded-sm bg-blue-500" />
-            <div className="w-3 h-3 rounded-sm bg-blue-600" />
+            <div className="w-3 h-3 rounded bg-gray-100" />
+            <div className="w-3 h-3 rounded bg-blue-200" />
+            <div className="w-3 h-3 rounded bg-blue-300" />
+            <div className="w-3 h-3 rounded bg-blue-400" />
+            <div className="w-3 h-3 rounded bg-blue-500" />
+            <div className="w-3 h-3 rounded bg-blue-600" />
           </div>
           <span>More</span>
         </div>

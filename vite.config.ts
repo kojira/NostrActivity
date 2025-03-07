@@ -12,7 +12,7 @@ export default defineConfig({
     },
   },
   root: "./client",
-  base: "/NostrActivity/",
+  base: process.env.NODE_ENV === "production" ? "/NostrActivity/" : "/",
   build: {
     outDir: "../dist/public",
     emptyOutDir: true,

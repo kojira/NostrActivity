@@ -80,7 +80,8 @@ export default function Home() {
       });
     } finally {
       setIsLoading(false);
-      setProgress(null);
+      // Keep progress visible by not resetting it to null
+      // setProgress(null);
     }
   };
 
