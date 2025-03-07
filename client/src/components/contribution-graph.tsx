@@ -39,7 +39,6 @@ export function ContributionGraph({ events }: ContributionGraphProps) {
       }
     });
 
-    // Convert to array format
     return {
       counts: Array.from(dayMap.entries()).map(([date, count]) => ({
         date: new Date(date),
@@ -87,7 +86,7 @@ export function ContributionGraph({ events }: ContributionGraphProps) {
       weekData.push(
         allDays.slice(i, i + 7).map(date => {
           const dateKey = date.toISOString().split('T')[0];
-          const dayData = data.counts.find(d => 
+          const dayData = data.counts.find(d =>
             d.date.toISOString().split('T')[0] === dateKey
           );
           return {
@@ -110,11 +109,37 @@ export function ContributionGraph({ events }: ContributionGraphProps) {
     });
   };
 
-  const getEventContent = (event: NostrEvent): string => {
-    if (event.kind === 1) return 'テキスト投稿';
-    if (event.kind === 6) return 'リポスト';
-    if (event.kind === 7) return 'リアクション';
-    return 'その他のイベント';
+  const getEventDetails = (event: NostrEvent): { type: string; details: string } => {
+    const getTagValue = (tags: string[][], key: string): string | undefined => {
+      return tags.find(tag => tag[0] === key)?.[1];
+    };
+
+    switch (event.kind) {
+      case 1:
+        return {
+          type: 'テキスト投稿',
+          details: event.content
+        };
+      case 6: {
+        const noteId = getTagValue(event.tags, 'e');
+        return {
+          type: 'リポスト',
+          details: noteId ? `リポストしたノート: ${noteId}` : 'ノートIDなし'
+        };
+      }
+      case 7: {
+        const noteId = getTagValue(event.tags, 'e');
+        return {
+          type: 'リアクション',
+          details: `${event.content} (対象ノート: ${noteId || 'IDなし'})`
+        };
+      }
+      default:
+        return {
+          type: 'その他のイベント',
+          details: `種別: ${event.kind}`
+        };
+    }
   };
 
   return (
@@ -157,15 +182,21 @@ export function ContributionGraph({ events }: ContributionGraphProps) {
               {selectedDay && ` (${selectedDay.events.length}件)`}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-2">
-            {selectedDay?.events.map((event, index) => (
-              <div key={index} className="text-sm">
-                <div className="font-medium">{getEventContent(event)}</div>
-                <div className="text-gray-500">
-                  {format(new Date(event.created_at * 1000), 'HH:mm:ss')}
+          <div className="space-y-4">
+            {selectedDay?.events.map((event, index) => {
+              const { type, details } = getEventDetails(event);
+              return (
+                <div key={index} className="border-b border-gray-100 pb-3 last:border-0">
+                  <div className="flex justify-between items-start mb-1">
+                    <div className="font-medium text-sm">{type}</div>
+                    <div className="text-xs text-gray-500">
+                      {format(new Date(event.created_at * 1000), 'HH:mm:ss')}
+                    </div>
+                  </div>
+                  <div className="text-sm text-gray-600 break-words">{details}</div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {selectedDay?.events.length === 0 && (
               <div className="text-gray-500">この日の活動はありません</div>
             )}
