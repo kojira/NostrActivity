@@ -32,17 +32,20 @@ export default function Home() {
     setEvents([]);
 
     try {
+      console.log('[Home] Starting event fetch for pubkey:', pubkey);
       const fetchedEvents = await nostrClient.getEvents(pubkey, oneYearAgo, (progress) => {
         setProgress(progress);
         // イベントのリアルタイムな更新
         setEvents(fetchedEvents);
       });
       setEvents(fetchedEvents);
+      console.log('[Home] Event fetch completed. Total events:', fetchedEvents.length);
       toast({
         title: "Success",
         description: `取得したイベント数: ${fetchedEvents.length}件`,
       });
     } catch (err) {
+      console.error('[Home] Error fetching events:', err);
       setError(err instanceof Error ? err : new Error('Unknown error'));
       toast({
         title: "Error",
@@ -103,7 +106,7 @@ export default function Home() {
         {error ? (
           <Card className="p-6 bg-red-50 border-red-200">
             <div className="text-red-600">
-              Failed to load events. Please check the pubkey and try again.
+              {error.message}
             </div>
           </Card>
         ) : events.length > 0 ? (

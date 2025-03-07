@@ -43,19 +43,24 @@ export class NostrClient {
 
   private isValidPubkey(pubkey: string): boolean {
     try {
+      console.log(`[Nostr] Validating pubkey: ${pubkey}`);
       if (pubkey.startsWith('npub')) {
         const { type, data } = nip19.decode(pubkey);
+        console.log(`[Nostr] Decoded npub - type: ${type}, data: ${data}`);
         return type === 'npub' && typeof data === 'string';
       }
-      return /^[0-9a-fA-F]{64}$/.test(pubkey);
-    } catch {
+      const isHex = /^[0-9a-fA-F]{64}$/.test(pubkey);
+      console.log(`[Nostr] Hex validation result: ${isHex}`);
+      return isHex;
+    } catch (error) {
+      console.error('[Nostr] Pubkey validation error:', error);
       return false;
     }
   }
 
   public normalizePubkey(pubkey: string): string {
     if (!this.isValidPubkey(pubkey)) {
-      throw new Error('Invalid pubkey format');
+      throw new Error(`Invalid pubkey format: ${pubkey}. Please provide a valid hex (64 characters) or npub format.`);
     }
 
     if (pubkey.startsWith('npub')) {
