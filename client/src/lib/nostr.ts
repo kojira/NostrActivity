@@ -41,20 +41,18 @@ export class NostrClient {
 
     console.log(`[Nostr] Connecting to relay: ${url}`);
 
-    // 新しい接続を作成
-    const relay = new WebSocket(url);
-    this.relayPool.push({ url, relay });
-
     // WebSocket接続が確立されるまで待機
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
-        relay.close();
         reject(new Error(`Connection timeout to ${url}`));
       }, 10000); // タイムアウトを10秒に延長
+
+      const relay = new WebSocket(url);
 
       relay.onopen = () => {
         clearTimeout(timeout);
         console.log(`[Nostr] Connected to relay: ${url}`);
+        this.relayPool.push({ url, relay });
         resolve();
       };
 
@@ -156,81 +154,73 @@ export class NostrClient {
       }
     }
 
-    // すべての接続を閉じる
-    this.relayPool.forEach(({ relay }) => {
-      if (relay.readyState === WebSocket.OPEN) {
-        relay.close();
-      }
-    });
-
     console.log(`[Nostr] Total events fetched: ${events.length}`);
     return events;
   }
 
   private async fetchEventBatch(filter: any): Promise<NostrEvent[]> {
     const events: NostrEvent[] = [];
-    const promises = this.relayPool.map(({ relay, url }) => {
-      return new Promise<void>((resolve, reject) => {
-        if (relay.readyState !== WebSocket.OPEN) {
-          console.log(`[Nostr] Relay not connected: ${url}`);
-          reject(new Error(`Relay not connected: ${url}`));
-          return;
-        }
 
-        const subId = Math.random().toString(36).substring(7);
-        let receivedEose = false;
-        let timeout: NodeJS.Timeout;
-        let eventCount = 0;
+    if (this.relayPool.length === 0) {
+      throw new Error('No relay connected');
+    }
 
-        console.log(`[Nostr] Sending REQ to ${url}:`, filter);
+    const { relay, url } = this.relayPool[0];
+    if (relay.readyState !== WebSocket.OPEN) {
+      throw new Error(`Relay not connected: ${url}`);
+    }
 
-        const cleanup = () => {
-          if (timeout) clearTimeout(timeout);
-          relay.onmessage = null;
-        };
+    return new Promise((resolve, reject) => {
+      const subId = Math.random().toString(36).substring(7);
+      let receivedEose = false;
+      let timeout: NodeJS.Timeout;
+      let eventCount = 0;
 
-        const resetTimeout = () => {
-          if (timeout) clearTimeout(timeout);
-          timeout = setTimeout(() => {
-            if (!receivedEose) {
-              console.log(`[Nostr] Timeout reached for ${url}, closing subscription ${subId}`);
-              cleanup();
-              relay.send(JSON.stringify(["CLOSE", subId]));
-              resolve();
-            }
-          }, 10000); // タイムアウトを10秒に延長
-        };
+      console.log(`[Nostr] Sending REQ to ${url}:`, filter);
 
-        resetTimeout();
+      const cleanup = () => {
+        if (timeout) clearTimeout(timeout);
+        relay.onmessage = null;
+      };
 
-        relay.onmessage = (event) => {
-          try {
-            const [type, _, eventData] = JSON.parse(event.data);
-            if (type === 'EVENT') {
-              eventCount++;
-              resetTimeout();
-              events.push(eventData);
-            } else if (type === 'EOSE') {
-              receivedEose = true;
-              console.log(`[Nostr] Received EOSE from ${url} for subscription ${subId}`);
-              console.log(`[Nostr] Events received from ${url}: ${eventCount}`);
-              cleanup();
-              relay.send(JSON.stringify(["CLOSE", subId]));
-              resolve();
-            }
-          } catch (error) {
-            console.error(`[Nostr] Error processing message from ${url}:`, error);
+      const resetTimeout = () => {
+        if (timeout) clearTimeout(timeout);
+        timeout = setTimeout(() => {
+          if (!receivedEose) {
+            console.log(`[Nostr] Timeout reached for ${url}, closing subscription ${subId}`);
             cleanup();
-            reject(error);
+            relay.send(JSON.stringify(["CLOSE", subId]));
+            resolve(events);
           }
-        };
+        }, 10000);
+      };
 
-        relay.send(JSON.stringify(["REQ", subId, filter]));
-      });
+      resetTimeout();
+
+      relay.onmessage = (event) => {
+        try {
+          const [type, _, eventData] = JSON.parse(event.data);
+          if (type === 'EVENT') {
+            eventCount++;
+            resetTimeout();
+            events.push(eventData);
+          } else if (type === 'EOSE') {
+            receivedEose = true;
+            console.log(`[Nostr] Received EOSE from ${url} for subscription ${subId}`);
+            console.log(`[Nostr] Events received from ${url}: ${eventCount}`);
+            cleanup();
+            relay.send(JSON.stringify(["CLOSE", subId]));
+            resolve(events);
+          }
+        } catch (error) {
+          console.error(`[Nostr] Error processing message from ${url}:`, error);
+          cleanup();
+          reject(error);
+        }
+      };
+
+      relay.send(JSON.stringify(["REQ", subId, filter]));
     });
-
-    await Promise.allSettled(promises);
-    return events;
   }
 }
 
