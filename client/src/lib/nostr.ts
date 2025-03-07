@@ -66,9 +66,18 @@ export class NostrClient {
     let currentEndTime = Math.floor(Date.now() / 1000);
     let currentStartTime = startTime;
     let hasMoreEvents = true;
+    let batchCount = 0;
+
+    console.log(`[Nostr] Starting event fetch for pubkey: ${normalizedPubkey}`);
+    console.log(`[Nostr] Time range: ${new Date(startTime * 1000).toISOString()} - ${new Date(currentEndTime * 1000).toISOString()}`);
 
     while (hasMoreEvents && currentStartTime < currentEndTime) {
       const batchEndTime = Math.min(currentStartTime + BATCH_WINDOW, currentEndTime);
+      batchCount++;
+
+      console.log(`[Nostr] Fetching batch ${batchCount}:`);
+      console.log(`[Nostr] From: ${new Date(currentStartTime * 1000).toISOString()}`);
+      console.log(`[Nostr] To: ${new Date(batchEndTime * 1000).toISOString()}`);
 
       const filter = {
         authors: [normalizedPubkey],
@@ -80,28 +89,36 @@ export class NostrClient {
       const batchEvents = await this.fetchEventBatch(filter);
       events.push(...batchEvents);
 
+      console.log(`[Nostr] Batch ${batchCount} completed: ${batchEvents.length} events`);
+
       if (batchEvents.length === 0) {
         hasMoreEvents = false;
+        console.log('[Nostr] No more events found, stopping fetch');
       } else {
         currentStartTime = batchEndTime;
       }
     }
 
+    console.log(`[Nostr] Total events fetched: ${events.length}`);
     return events;
   }
 
   private async fetchEventBatch(filter: any): Promise<NostrEvent[]> {
     const events: NostrEvent[] = [];
-    const promises = this.relayPool.map(({ relay }) => {
+    const promises = this.relayPool.map(({ relay, url }) => {
       return new Promise<void>((resolve) => {
         const subId = Math.random().toString(36).substring(7);
         let receivedEose = false;
         let timeout: NodeJS.Timeout;
+        let eventCount = 0;
+
+        console.log(`[Nostr] Sending REQ to ${url}:`, filter);
 
         const resetTimeout = () => {
           if (timeout) clearTimeout(timeout);
           timeout = setTimeout(() => {
             if (!receivedEose) {
+              console.log(`[Nostr] Timeout reached for ${url}, closing subscription ${subId}`);
               relay.send(JSON.stringify(["CLOSE", subId]));
               resolve();
             }
@@ -115,10 +132,13 @@ export class NostrClient {
         relay.onmessage = (event) => {
           const [type, _, eventData] = JSON.parse(event.data);
           if (type === 'EVENT') {
+            eventCount++;
             resetTimeout();
             events.push(eventData);
           } else if (type === 'EOSE') {
             receivedEose = true;
+            console.log(`[Nostr] Received EOSE from ${url} for subscription ${subId}`);
+            console.log(`[Nostr] Events received from ${url}: ${eventCount}`);
             clearTimeout(timeout);
             relay.send(JSON.stringify(["CLOSE", subId]));
             resolve();
