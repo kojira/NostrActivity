@@ -190,7 +190,7 @@ export function ContributionGraph({ events }: ContributionGraphProps) {
                   <div className="flex justify-between items-start mb-1">
                     <div className="font-medium text-sm">{type}</div>
                     <div className="text-xs text-gray-500">
-                      {format(new Date(event.created_at * 1000), 'HH:mm:ss')}
+                      {format(new Date(event.created_at * 1000), 'yyyy/MM/dd HH:mm:ss')}
                     </div>
                   </div>
                   <div className="text-sm text-gray-600 break-words">{details}</div>
