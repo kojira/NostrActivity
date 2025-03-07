@@ -34,8 +34,8 @@ export default function Home() {
     try {
       const fetchedEvents = await nostrClient.getEvents(pubkey, oneYearAgo, (progress) => {
         setProgress(progress);
-        // 現在までに取得したイベントを更新
-        setEvents(prevEvents => [...prevEvents]);
+        // イベントのリアルタイムな更新
+        setEvents(fetchedEvents);
       });
       setEvents(fetchedEvents);
       toast({

@@ -24,9 +24,7 @@ export interface FetchProgress {
 }
 
 const defaultRelays = [
-  'wss://relay.damus.io',
-  'wss://relay.nostr.band',
-  'wss://nos.lol',
+  'wss://yabu.me',
 ];
 
 export class NostrClient {
@@ -94,16 +92,6 @@ export class NostrClient {
       console.log(`[Nostr] From: ${new Date(currentStartTime * 1000).toISOString()}`);
       console.log(`[Nostr] To: ${new Date(batchEndTime * 1000).toISOString()}`);
 
-      if (onProgress) {
-        onProgress({
-          currentBatch: batchCount,
-          totalBatches,
-          fetchedEvents: events.length,
-          startDate: new Date(currentStartTime * 1000).toISOString(),
-          endDate: new Date(batchEndTime * 1000).toISOString(),
-        });
-      }
-
       const filter = {
         authors: [normalizedPubkey],
         since: currentStartTime,
@@ -113,6 +101,16 @@ export class NostrClient {
 
       const batchEvents = await this.fetchEventBatch(filter);
       events.push(...batchEvents);
+
+      if (onProgress) {
+        onProgress({
+          currentBatch: batchCount,
+          totalBatches,
+          fetchedEvents: events.length,
+          startDate: new Date(currentStartTime * 1000).toISOString(),
+          endDate: new Date(batchEndTime * 1000).toISOString(),
+        });
+      }
 
       console.log(`[Nostr] Batch ${batchCount} completed: ${batchEvents.length} events`);
 
