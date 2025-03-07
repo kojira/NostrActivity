@@ -16,31 +16,39 @@ export function ContributionGraph({ events }: ContributionGraphProps) {
   } | null>(null);
 
   const data = useMemo(() => {
-    // 現在の日付を取得し、時刻を00:00:00に設定
+    // 現在の日付を取得し、時刻を現地時間の00:00:00に設定
     const now = new Date();
     now.setHours(0, 0, 0, 0);
 
-    // 正確に1年前の日付を計算
-    const oneYearAgo = new Date(now);
-    oneYearAgo.setFullYear(now.getFullYear() - 1);
+    // 正確に1年前の日付を計算（現地時間）
+    const startDate = new Date(now);
+    startDate.setFullYear(now.getFullYear() - 1);
 
     // Create array of all days in the last year and initialize with 0
     const dayMap = new Map<string, number>();
     const eventsByDay = new Map<string, NostrEvent[]>();
-    const days = d3.timeDays(oneYearAgo, now.getTime() + 86400000); // Include today
+    const days = d3.timeDays(startDate, now.getTime() + 86400000); // Include today
 
     days.forEach(day => {
-      const dateKey = day.toISOString().split('T')[0];
+      // 日付文字列を現地時間で生成
+      const localDate = new Date(day);
+      const dateKey = localDate.toLocaleDateString('sv'); // YYYY-MM-DD形式
       dayMap.set(dateKey, 0);
       eventsByDay.set(dateKey, []);
     });
 
+    // イベントを日付でソート
+    const sortedEvents = [...events].sort((a, b) => a.created_at - b.created_at);
+
     // Count events per day and store events
-    events.forEach(event => {
-      const day = new Date(event.created_at * 1000).toISOString().split('T')[0];
-      if (dayMap.has(day)) {
-        dayMap.set(day, (dayMap.get(day) || 0) + 1);
-        eventsByDay.get(day)?.push(event);
+    sortedEvents.forEach(event => {
+      // UTCタイムスタンプを現地時間のDateオブジェクトに変換
+      const eventDate = new Date(event.created_at * 1000);
+      const dateKey = eventDate.toLocaleDateString('sv');
+
+      if (dayMap.has(dateKey)) {
+        dayMap.set(dateKey, (dayMap.get(dateKey) || 0) + 1);
+        eventsByDay.get(dateKey)?.push(event);
       }
     });
 
@@ -60,10 +68,7 @@ export function ContributionGraph({ events }: ContributionGraphProps) {
 
   const getColor = (count: number) => {
     if (count === 0) return 'bg-gray-100';
-
-    // 最大値に基づいて相対的な色の濃さを決定
     const normalized = count / maxCount;
-
     if (normalized <= 0.2) return 'bg-blue-200';
     if (normalized <= 0.4) return 'bg-blue-300';
     if (normalized <= 0.6) return 'bg-blue-400';
@@ -78,15 +83,12 @@ export function ContributionGraph({ events }: ContributionGraphProps) {
 
     for (let i = 0; i < days.length; i++) {
       currentWeek.push(days[i]);
-
-      // 1週間分たまったらweekDataに追加
       if (currentWeek.length === 7) {
         weekData.push(currentWeek);
         currentWeek = [];
       }
     }
 
-    // 最後の週が7日未満の場合も追加
     if (currentWeek.length > 0) {
       weekData.push(currentWeek);
     }
@@ -95,8 +97,9 @@ export function ContributionGraph({ events }: ContributionGraphProps) {
   }, [data]);
 
   const handleDayClick = (day: { date: Date; count: number }) => {
-    const dateKey = day.date.toISOString().split('T')[0];
+    const dateKey = day.date.toLocaleDateString('sv');
     const dayEvents = data.eventsByDay.get(dateKey) || [];
+    dayEvents.sort((a, b) => b.created_at - a.created_at); // 新しい順にソート
     setSelectedDay({
       date: day.date,
       events: dayEvents
@@ -184,7 +187,7 @@ export function ContributionGraph({ events }: ContributionGraphProps) {
                   <div className="flex justify-between items-start mb-1">
                     <div className="font-medium text-sm">{type}</div>
                     <div className="text-xs text-gray-500">
-                      {format(new Date(event.created_at * 1000), 'yyyy/MM/dd HH:mm:ss')}
+                      {format(new Date(event.created_at * 1000), 'HH:mm:ss')}
                     </div>
                   </div>
                   <div className="text-sm text-gray-600 break-words">{details}</div>
