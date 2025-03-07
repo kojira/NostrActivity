@@ -91,20 +91,20 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+    <div className="min-h-screen bg-gray-50 py-6 sm:py-12 px-2 sm:px-4">
+      <div className="w-full max-w-4xl mx-auto">
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2 sm:mb-4">
             Nostr Contribution Graph
           </h1>
-          <p className="text-gray-600">
+          <p className="text-sm sm:text-base text-gray-600">
             View your Nostr activity over the last year
           </p>
         </div>
 
-        <Card className="mb-8 p-6">
+        <Card className="mb-6 sm:mb-8 p-4 sm:p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <Input
                 value={relayUrl}
                 onChange={(e) => setRelayUrl(e.target.value)}
@@ -113,7 +113,7 @@ export default function Home() {
                 disabled={isLoading}
               />
             </div>
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <Input
                 value={pubkey}
                 onChange={(e) => setPubkey(e.target.value)}
@@ -121,7 +121,7 @@ export default function Home() {
                 className="flex-1"
                 disabled={isLoading}
               />
-              <Button type="submit" disabled={isLoading}>
+              <Button type="submit" disabled={isLoading} className="w-full sm:w-auto">
                 {isLoading ? "Loading..." : "View Activity"}
               </Button>
             </div>

@@ -134,53 +134,55 @@ export function ContributionGraph({ events }: ContributionGraphProps) {
   };
 
   return (
-    <Card className="p-6">
+    <Card className="p-4 sm:p-6">
       <div className="flex flex-col gap-2">
-        <div className="text-sm text-gray-500 mb-2">Contributions in the last year</div>
-        <div className="flex gap-1">
-          {weeks.map((week, weekIndex) => (
-            <div key={weekIndex} className="flex flex-col gap-1">
-              {week.map((day, dayIndex) => (
-                <div
-                  key={dayIndex}
-                  className={`w-3 h-3 rounded ${getColor(day.count)} cursor-pointer hover:ring-2 hover:ring-primary transition-all`}
-                  title={`${format(day.date, 'yyyy/MM/dd')}: ${day.count} contributions`}
-                  onClick={() => handleDayClick(day)}
-                />
-              ))}
-            </div>
-          ))}
+        <div className="text-xs sm:text-sm text-gray-500 mb-2">Contributions in the last year</div>
+        <div className="overflow-x-auto pb-2">
+          <div className="flex gap-1 min-w-[640px]">
+            {weeks.map((week, weekIndex) => (
+              <div key={weekIndex} className="flex flex-col gap-1">
+                {week.map((day, dayIndex) => (
+                  <div
+                    key={dayIndex}
+                    className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded ${getColor(day.count)} cursor-pointer hover:ring-2 hover:ring-primary transition-all`}
+                    title={`${format(day.date, 'yyyy/MM/dd')}: ${day.count} contributions`}
+                    onClick={() => handleDayClick(day)}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+        <div className="flex items-center gap-1 sm:gap-2 mt-2 text-xs text-gray-500">
           <span>Less</span>
           <div className="flex gap-1">
-            <div className="w-3 h-3 rounded bg-gray-100" />
-            <div className="w-3 h-3 rounded bg-blue-200" />
-            <div className="w-3 h-3 rounded bg-blue-300" />
-            <div className="w-3 h-3 rounded bg-blue-400" />
-            <div className="w-3 h-3 rounded bg-blue-500" />
-            <div className="w-3 h-3 rounded bg-blue-600" />
+            <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded bg-gray-100" />
+            <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded bg-blue-200" />
+            <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded bg-blue-300" />
+            <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded bg-blue-400" />
+            <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded bg-blue-500" />
+            <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded bg-blue-600" />
           </div>
           <span>More</span>
         </div>
       </div>
 
       <Dialog open={selectedDay !== null} onOpenChange={() => setSelectedDay(null)}>
-        <DialogContent className="max-h-[80vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-h-[80vh] w-[90vw] max-w-lg overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-base sm:text-lg">
               {selectedDay && format(selectedDay.date, 'yyyy年MM月dd日')}の活動
               {selectedDay && ` (${selectedDay.events.length}件)`}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 overflow-y-auto flex-1 pr-2">
+          <div className="space-y-3 sm:space-y-4 overflow-y-auto flex-1 pr-1 sm:pr-2">
             {selectedDay?.events.map((event, index) => {
               const { type, details, noteId } = getEventDetails(event);
               return (
-                <div key={index} className="border-b border-gray-100 pb-3 last:border-0">
-                  <div className="flex justify-between items-start mb-1">
-                    <div className="font-medium text-sm">{type}</div>
-                    <div className="text-xs text-gray-500">
+                <div key={index} className="border-b border-gray-100 pb-2 sm:pb-3 last:border-0">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-1">
+                    <div className="font-medium text-xs sm:text-sm">{type}</div>
+                    <div className="text-xs text-gray-500 mt-1 sm:mt-0">
                       {noteId ? (
                         <a
                           href={`https://njump.me/${noteId}`}
@@ -195,12 +197,12 @@ export function ContributionGraph({ events }: ContributionGraphProps) {
                       )}
                     </div>
                   </div>
-                  <div className="text-sm text-gray-600 break-words">{details}</div>
+                  <div className="text-xs sm:text-sm text-gray-600 break-words">{details}</div>
                 </div>
               );
             })}
             {selectedDay?.events.length === 0 && (
-              <div className="text-gray-500">この日の活動はありません</div>
+              <div className="text-xs sm:text-sm text-gray-500">この日の活動はありません</div>
             )}
           </div>
         </DialogContent>
