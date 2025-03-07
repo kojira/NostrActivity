@@ -175,14 +175,14 @@ export function ContributionGraph({ events }: ContributionGraphProps) {
       </div>
 
       <Dialog open={selectedDay !== null} onOpenChange={() => setSelectedDay(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>
               {selectedDay && format(selectedDay.date, 'yyyy年MM月dd日')}の活動
               {selectedDay && ` (${selectedDay.events.length}件)`}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 overflow-y-auto flex-1 pr-2">
             {selectedDay?.events.map((event, index) => {
               const { type, details } = getEventDetails(event);
               return (
