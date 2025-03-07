@@ -1,5 +1,15 @@
 import { nip19 } from 'nostr-tools';
 
+// Get base URL for WebSocket connection
+const getWSBaseUrl = () => {
+  // GitHub Pages deployment check
+  if (window.location.hostname.endsWith('github.io')) {
+    return 'wss://yabu.me';  // デフォルトのリレーを使用
+  }
+  // 開発環境やその他の環境ではそのまま現在のホストを使用
+  return window.location.protocol === 'https:' ? 'wss://yabu.me' : 'wss://yabu.me';
+};
+
 export interface NostrEvent {
   id: string;
   pubkey: string;
@@ -223,4 +233,4 @@ export class NostrClient {
   }
 }
 
-export const nostrClient = new NostrClient();
+export const nostrClient = new NostrClient(getWSBaseUrl());
