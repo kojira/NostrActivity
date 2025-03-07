@@ -4,7 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
     <title>Nostr Contribution Graph</title>
-    <base href="%BASE_URL%" />
+    <base href="/" />
+    <script>
+      // GitHub Pages対応：ベースパスの設定
+      if (window.location.hostname.endsWith('github.io')) {
+        const baseElement = document.querySelector('base');
+        baseElement.href = import.meta.env.VITE_BASE_PATH + '/';
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
