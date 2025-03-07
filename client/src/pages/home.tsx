@@ -18,7 +18,12 @@ export default function Home() {
     queryFn: async () => {
       if (!pubkey) return [];
       try {
-        return await nostrClient.getEvents(pubkey, oneYearAgo);
+        const events = await nostrClient.getEvents(pubkey, oneYearAgo);
+        toast({
+          title: "Success",
+          description: `取得したイベント数: ${events.length}件`,
+        });
+        return events;
       } catch (err) {
         toast({
           title: "Error",
