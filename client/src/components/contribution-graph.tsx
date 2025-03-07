@@ -16,13 +16,18 @@ export function ContributionGraph({ events }: ContributionGraphProps) {
   } | null>(null);
 
   const data = useMemo(() => {
+    // 現在の日付を取得し、時刻を00:00:00に設定
     const now = new Date();
-    const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+    now.setHours(0, 0, 0, 0);
+
+    // 正確に1年前の日付を計算
+    const oneYearAgo = new Date(now);
+    oneYearAgo.setFullYear(now.getFullYear() - 1);
 
     // Create array of all days in the last year and initialize with 0
     const dayMap = new Map<string, number>();
     const eventsByDay = new Map<string, NostrEvent[]>();
-    const days = d3.timeDays(oneYearAgo, now);
+    const days = d3.timeDays(oneYearAgo, now.getTime() + 86400000); // Include today
 
     days.forEach(day => {
       const dateKey = day.toISOString().split('T')[0];
@@ -67,34 +72,23 @@ export function ContributionGraph({ events }: ContributionGraphProps) {
   };
 
   const weeks = useMemo(() => {
-    const startDate = data.counts[0].date;
-    const endDate = data.counts[data.counts.length - 1].date;
-
-    // 日曜日から始まるように調整
-    const adjustedStart = new Date(startDate);
-    adjustedStart.setDate(adjustedStart.getDate() - adjustedStart.getDay());
-
-    // 土曜日で終わるように調整
-    const adjustedEnd = new Date(endDate);
-    adjustedEnd.setDate(adjustedEnd.getDate() + (6 - adjustedEnd.getDay()));
-
-    const allDays = d3.timeDays(adjustedStart, adjustedEnd);
-
-    // 7日ごとに週に分割
+    const days = data.counts;
     const weekData: { date: Date; count: number }[][] = [];
-    for (let i = 0; i < allDays.length; i += 7) {
-      weekData.push(
-        allDays.slice(i, i + 7).map(date => {
-          const dateKey = date.toISOString().split('T')[0];
-          const dayData = data.counts.find(d =>
-            d.date.toISOString().split('T')[0] === dateKey
-          );
-          return {
-            date,
-            count: dayData?.count || 0
-          };
-        })
-      );
+    let currentWeek: { date: Date; count: number }[] = [];
+
+    for (let i = 0; i < days.length; i++) {
+      currentWeek.push(days[i]);
+
+      // 1週間分たまったらweekDataに追加
+      if (currentWeek.length === 7) {
+        weekData.push(currentWeek);
+        currentWeek = [];
+      }
+    }
+
+    // 最後の週が7日未満の場合も追加
+    if (currentWeek.length > 0) {
+      weekData.push(currentWeek);
     }
 
     return weekData;
