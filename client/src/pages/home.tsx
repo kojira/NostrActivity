@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 
 export default function Home() {
   const [pubkey, setPubkey] = useState('');
+  const [relayUrl, setRelayUrl] = useState('wss://yabu.me');
   const [events, setEvents] = useState<NostrEvent[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -27,11 +28,23 @@ export default function Home() {
       return;
     }
 
+    if (!relayUrl.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a relay URL",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setEvents([]);
 
     try {
+      // リレーの接続を更新
+      nostrClient.connectToRelay(relayUrl);
+
       console.log('[Home] Starting event fetch for pubkey:', pubkey);
       const fetchedEvents = await nostrClient.getEvents(
         pubkey,
@@ -80,17 +93,28 @@ export default function Home() {
         </div>
 
         <Card className="mb-8 p-6">
-          <form onSubmit={handleSubmit} className="flex gap-4">
-            <Input
-              value={pubkey}
-              onChange={(e) => setPubkey(e.target.value)}
-              placeholder="Enter Nostr pubkey (hex or npub)"
-              className="flex-1"
-              disabled={isLoading}
-            />
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Loading..." : "View Activity"}
-            </Button>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="flex gap-4">
+              <Input
+                value={relayUrl}
+                onChange={(e) => setRelayUrl(e.target.value)}
+                placeholder="Enter relay URL (e.g., wss://yabu.me)"
+                className="flex-1"
+                disabled={isLoading}
+              />
+            </div>
+            <div className="flex gap-4">
+              <Input
+                value={pubkey}
+                onChange={(e) => setPubkey(e.target.value)}
+                placeholder="Enter Nostr pubkey (hex or npub)"
+                className="flex-1"
+                disabled={isLoading}
+              />
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? "Loading..." : "View Activity"}
+              </Button>
+            </div>
           </form>
 
           {progress && (

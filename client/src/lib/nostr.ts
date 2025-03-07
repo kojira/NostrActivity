@@ -23,22 +23,22 @@ export interface FetchProgress {
   endDate: string;
 }
 
-const defaultRelays = [
-  'wss://yabu.me',
-];
-
 export class NostrClient {
   private relayPool: RelayPool[] = [];
 
-  constructor() {
-    this.connectToRelays();
+  constructor(relayUrl: string = 'wss://yabu.me') {
+    this.connectToRelay(relayUrl);
   }
 
-  private connectToRelays() {
-    defaultRelays.forEach(url => {
-      const relay = new WebSocket(url);
-      this.relayPool.push({ url, relay });
-    });
+  public connectToRelay(url: string) {
+    // 既存の接続を閉じる
+    this.relayPool.forEach(({ relay }) => relay.close());
+    this.relayPool = [];
+
+    // 新しい接続を作成
+    const relay = new WebSocket(url);
+    this.relayPool.push({ url, relay });
+    console.log(`[Nostr] Connected to relay: ${url}`);
   }
 
   private isValidPubkey(pubkey: string): boolean {
@@ -101,7 +101,6 @@ export class NostrClient {
         authors: [normalizedPubkey],
         since: currentStartTime,
         until: batchEndTime,
-        kinds: [1, 6, 7], // text_note, repost, reaction
       };
 
       const batchEvents = await this.fetchEventBatch(filter);
