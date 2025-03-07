@@ -16,13 +16,15 @@ export default function Home() {
   const [progress, setProgress] = useState<FetchProgress | null>(null);
   const { toast } = useToast();
 
-  // 現在の日付を取得し、時刻を00:00:00に設定
+  // 現在の日付を取得し、UTC基準の終了時刻を設定
   const now = new Date();
-  now.setHours(0, 0, 0, 0);
+  const endTime = new Date(now);
+  endTime.setUTCHours(23, 59, 59, 999);
 
-  // 正確に1年前の日付を計算
-  const startDate = new Date(now);
-  startDate.setFullYear(now.getFullYear() - 1);
+  // 正確に1年前の日付を計算し、UTC基準の開始時刻を設定
+  const startTime = new Date(now);
+  startTime.setFullYear(now.getFullYear() - 1);
+  startTime.setUTCHours(0, 0, 0, 0);
 
   const fetchEvents = async () => {
     if (!pubkey.trim()) {
@@ -49,13 +51,13 @@ export default function Home() {
 
     try {
       // リレーの接続を更新
-      nostrClient.connectToRelay(relayUrl);
+      await nostrClient.connectToRelay(relayUrl);
 
       console.log('[Home] Starting event fetch for pubkey:', pubkey);
       const fetchedEvents = await nostrClient.getEvents(
         pubkey,
-        Math.floor(startDate.getTime() / 1000),
-        Math.floor(now.getTime() / 1000),
+        Math.floor(startTime.getTime() / 1000),
+        Math.floor(endTime.getTime() / 1000),
         (progress, partialEvents) => {
           setProgress(progress);
           // 部分的に取得したイベントで更新

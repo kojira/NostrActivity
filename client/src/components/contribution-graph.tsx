@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import * as d3 from 'd3';
+import { nip19 } from 'nostr-tools';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { NostrEvent } from '@/lib/nostr';
@@ -16,33 +17,24 @@ export function ContributionGraph({ events }: ContributionGraphProps) {
   } | null>(null);
 
   const data = useMemo(() => {
-    // 現在の日付を取得し、時刻を現地時間の00:00:00に設定
     const now = new Date();
     now.setHours(0, 0, 0, 0);
 
-    // 正確に1年前の日付を計算（現地時間）
     const startDate = new Date(now);
     startDate.setFullYear(now.getFullYear() - 1);
 
-    // Create array of all days in the last year and initialize with 0
     const dayMap = new Map<string, number>();
     const eventsByDay = new Map<string, NostrEvent[]>();
-    const days = d3.timeDays(startDate, now.getTime() + 86400000); // Include today
+    const days = d3.timeDays(startDate, now.getTime() + 86400000);
 
     days.forEach(day => {
-      // 日付文字列を現地時間で生成
       const localDate = new Date(day);
-      const dateKey = localDate.toLocaleDateString('sv'); // YYYY-MM-DD形式
+      const dateKey = localDate.toLocaleDateString('sv');
       dayMap.set(dateKey, 0);
       eventsByDay.set(dateKey, []);
     });
 
-    // イベントを日付でソート
-    const sortedEvents = [...events].sort((a, b) => a.created_at - b.created_at);
-
-    // Count events per day and store events
-    sortedEvents.forEach(event => {
-      // UTCタイムスタンプを現地時間のDateオブジェクトに変換
+    events.forEach(event => {
       const eventDate = new Date(event.created_at * 1000);
       const dateKey = eventDate.toLocaleDateString('sv');
 
@@ -61,7 +53,6 @@ export function ContributionGraph({ events }: ContributionGraphProps) {
     };
   }, [events]);
 
-  // Calculate maximum count for better color distribution
   const maxCount = useMemo(() => {
     return Math.max(...data.counts.map(d => d.count));
   }, [data]);
@@ -99,24 +90,27 @@ export function ContributionGraph({ events }: ContributionGraphProps) {
   const handleDayClick = (day: { date: Date; count: number }) => {
     const dateKey = day.date.toLocaleDateString('sv');
     const dayEvents = data.eventsByDay.get(dateKey) || [];
-    dayEvents.sort((a, b) => b.created_at - a.created_at); // 新しい順にソート
+    dayEvents.sort((a, b) => a.created_at - b.created_at);
     setSelectedDay({
       date: day.date,
       events: dayEvents
     });
   };
 
-  const getEventDetails = (event: NostrEvent): { type: string; details: string } => {
+  const getEventDetails = (event: NostrEvent): { type: string; details: string; noteId?: string } => {
     const getTagValue = (tags: string[][], key: string): string | undefined => {
       return tags.find(tag => tag[0] === key)?.[1];
     };
 
     switch (event.kind) {
-      case 1:
+      case 1: {
+        const noteId = nip19.noteEncode(event.id);
         return {
           type: 'テキスト投稿',
-          details: event.content
+          details: event.content,
+          noteId
         };
+      }
       case 6: {
         const noteId = getTagValue(event.tags, 'e');
         return {
@@ -181,13 +175,24 @@ export function ContributionGraph({ events }: ContributionGraphProps) {
           </DialogHeader>
           <div className="space-y-4 overflow-y-auto flex-1 pr-2">
             {selectedDay?.events.map((event, index) => {
-              const { type, details } = getEventDetails(event);
+              const { type, details, noteId } = getEventDetails(event);
               return (
                 <div key={index} className="border-b border-gray-100 pb-3 last:border-0">
                   <div className="flex justify-between items-start mb-1">
                     <div className="font-medium text-sm">{type}</div>
                     <div className="text-xs text-gray-500">
-                      {format(new Date(event.created_at * 1000), 'HH:mm:ss')}
+                      {noteId ? (
+                        <a
+                          href={`https://njump.me/${noteId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:underline"
+                        >
+                          {format(new Date(event.created_at * 1000), 'yyyy/MM/dd HH:mm:ss')}
+                        </a>
+                      ) : (
+                        format(new Date(event.created_at * 1000), 'yyyy/MM/dd HH:mm:ss')
+                      )}
                     </div>
                   </div>
                   <div className="text-sm text-gray-600 break-words">{details}</div>
