@@ -15,6 +15,14 @@ export interface RelayPool {
   relay: WebSocket;
 }
 
+export interface FetchProgress {
+  currentBatch: number;
+  totalBatches: number;
+  fetchedEvents: number;
+  startDate: string;
+  endDate: string;
+}
+
 const defaultRelays = [
   'wss://relay.damus.io',
   'wss://relay.nostr.band',
@@ -59,7 +67,11 @@ export class NostrClient {
     return pubkey.toLowerCase();
   }
 
-  public async getEvents(pubkey: string, startTime: number): Promise<NostrEvent[]> {
+  public async getEvents(
+    pubkey: string,
+    startTime: number,
+    onProgress?: (progress: FetchProgress) => void
+  ): Promise<NostrEvent[]> {
     const normalizedPubkey = this.normalizePubkey(pubkey);
     const events: NostrEvent[] = [];
     const BATCH_WINDOW = 24 * 60 * 60; // 1日単位で取得
@@ -67,6 +79,9 @@ export class NostrClient {
     let currentStartTime = startTime;
     let hasMoreEvents = true;
     let batchCount = 0;
+
+    // 総バッチ数を計算
+    const totalBatches = Math.ceil((currentEndTime - startTime) / BATCH_WINDOW);
 
     console.log(`[Nostr] Starting event fetch for pubkey: ${normalizedPubkey}`);
     console.log(`[Nostr] Time range: ${new Date(startTime * 1000).toISOString()} - ${new Date(currentEndTime * 1000).toISOString()}`);
@@ -78,6 +93,16 @@ export class NostrClient {
       console.log(`[Nostr] Fetching batch ${batchCount}:`);
       console.log(`[Nostr] From: ${new Date(currentStartTime * 1000).toISOString()}`);
       console.log(`[Nostr] To: ${new Date(batchEndTime * 1000).toISOString()}`);
+
+      if (onProgress) {
+        onProgress({
+          currentBatch: batchCount,
+          totalBatches,
+          fetchedEvents: events.length,
+          startDate: new Date(currentStartTime * 1000).toISOString(),
+          endDate: new Date(batchEndTime * 1000).toISOString(),
+        });
+      }
 
       const filter = {
         authors: [normalizedPubkey],

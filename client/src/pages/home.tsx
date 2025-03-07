@@ -1,43 +1,23 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { ContributionGraph } from '@/components/contribution-graph';
-import { nostrClient } from '@/lib/nostr';
+import { nostrClient, type NostrEvent, type FetchProgress } from '@/lib/nostr';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Home() {
   const [pubkey, setPubkey] = useState('');
+  const [events, setEvents] = useState<NostrEvent[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+  const [progress, setProgress] = useState<FetchProgress | null>(null);
   const { toast } = useToast();
 
   const oneYearAgo = Math.floor(Date.now() / 1000) - 365 * 24 * 60 * 60;
 
-  const { data: events, isLoading, error, refetch } = useQuery({
-    queryKey: ['nostr-events', pubkey],
-    queryFn: async () => {
-      if (!pubkey) return [];
-      try {
-        const events = await nostrClient.getEvents(pubkey, oneYearAgo);
-        toast({
-          title: "Success",
-          description: `取得したイベント数: ${events.length}件`,
-        });
-        return events;
-      } catch (err) {
-        toast({
-          title: "Error",
-          description: err instanceof Error ? err.message : "Failed to fetch events",
-          variant: "destructive"
-        });
-        throw err;
-      }
-    },
-    enabled: false
-  });
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const fetchEvents = async () => {
     if (!pubkey.trim()) {
       toast({
         title: "Error",
@@ -46,7 +26,38 @@ export default function Home() {
       });
       return;
     }
-    refetch();
+
+    setIsLoading(true);
+    setError(null);
+    setEvents([]);
+
+    try {
+      const fetchedEvents = await nostrClient.getEvents(pubkey, oneYearAgo, (progress) => {
+        setProgress(progress);
+        // 現在までに取得したイベントを更新
+        setEvents(prevEvents => [...prevEvents]);
+      });
+      setEvents(fetchedEvents);
+      toast({
+        title: "Success",
+        description: `取得したイベント数: ${fetchedEvents.length}件`,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Unknown error'));
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Failed to fetch events",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+      setProgress(null);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    fetchEvents();
   };
 
   return (
@@ -68,11 +79,25 @@ export default function Home() {
               onChange={(e) => setPubkey(e.target.value)}
               placeholder="Enter Nostr pubkey (hex or npub)"
               className="flex-1"
+              disabled={isLoading}
             />
             <Button type="submit" disabled={isLoading}>
               {isLoading ? "Loading..." : "View Activity"}
             </Button>
           </form>
+
+          {progress && (
+            <div className="mt-4 space-y-2">
+              <div className="flex justify-between text-sm text-gray-500">
+                <span>Fetching events ({progress.currentBatch} / {progress.totalBatches} days)</span>
+                <span>{progress.fetchedEvents} events</span>
+              </div>
+              <Progress value={(progress.currentBatch / progress.totalBatches) * 100} />
+              <div className="text-xs text-gray-400">
+                {new Date(progress.startDate).toLocaleDateString()} - {new Date(progress.endDate).toLocaleDateString()}
+              </div>
+            </div>
+          )}
         </Card>
 
         {error ? (
@@ -81,15 +106,9 @@ export default function Home() {
               Failed to load events. Please check the pubkey and try again.
             </div>
           </Card>
-        ) : events && events.length > 0 ? (
+        ) : events.length > 0 ? (
           <ContributionGraph events={events} />
-        ) : events && (
-          <Card className="p-6">
-            <div className="text-gray-600 text-center">
-              No activity found for this pubkey in the last year
-            </div>
-          </Card>
-        )}
+        ) : null}
       </div>
     </div>
   );
