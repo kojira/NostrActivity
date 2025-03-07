@@ -62,7 +62,7 @@ export class NostrClient {
   public async getEvents(pubkey: string, startTime: number): Promise<NostrEvent[]> {
     const normalizedPubkey = this.normalizePubkey(pubkey);
     const events: NostrEvent[] = [];
-    const BATCH_WINDOW = 30 * 24 * 60 * 60; // 30 days window
+    const BATCH_WINDOW = 24 * 60 * 60; // 1日単位で取得
     let currentEndTime = Math.floor(Date.now() / 1000);
     let currentStartTime = startTime;
     let hasMoreEvents = true;
@@ -122,7 +122,7 @@ export class NostrClient {
               relay.send(JSON.stringify(["CLOSE", subId]));
               resolve();
             }
-          }, 10000); // 10 seconds timeout for each batch
+          }, 5000); // 5秒のタイムアウトに短縮（1日単位の取得なので）
         };
 
         resetTimeout();
